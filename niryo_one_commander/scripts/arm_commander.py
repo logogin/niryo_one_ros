@@ -19,10 +19,13 @@
 
 import rospy
 import threading
- 
+
+import actionlib
 from actionlib_msgs.msg import GoalStatus
 
 from trajectory_msgs.msg import JointTrajectory
+from control_msgs.msg import FollowJointTrajectoryAction
+from control_msgs.msg import FollowJointTrajectoryGoal
 from control_msgs.msg import FollowJointTrajectoryActionGoal
 from control_msgs.msg import FollowJointTrajectoryActionResult
 
@@ -78,6 +81,31 @@ class ArmCommander:
         msg.points = []
         rospy.logwarn("SEND POSITION HOLD MODE TO CONTROLLER")
         self.joint_trajectory_publisher.publish(msg)
+
+    def send_trajectory_direct(self, plan):
+        #rospy.logwarn("Send trajectory direct message %s", plan)
+        #msg = plan.joint_trajectory
+        msg = JointTrajectory()
+        msg.header.stamp = rospy.Time.now()
+        #msg.header.stamp = rospy.Time(1)
+        msg.joint_names = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']
+        msg.points = plan.joint_trajectory.points
+	#rospy.logwarn('============Messy points============== %d', self.count)
+	#if self.count%2 == 1:
+	#    for p in range(len(msg.points)/2): 
+	#	msg.points[p].velocities = msg.points[len(msg.points)/2].velocities
+	#    self.count += 1
+	#msg.points = [plan.joint_trajectory.points[-1]]
+        rospy.logwarn("Joint Trajectory Publisher msg: %s", msg)
+        self.joint_trajectory_publisher.publish(msg)
+
+    def send_trajectory_direct2(self, plan):
+        rospy.logwarn("Send trajectory direct message")
+        goal = FollowJointTrajectoryGoal()
+        goal.trajectory = plan.joint_trajectory
+        self.trajectory_client.send_goal(goal)
+        self.trajectory_client.wait_for_result()
+        rospy.logwarn("Finished trajectory direct message")
 
     def stop_current_plan(self):
         rospy.loginfo("Send STOP to arm")
@@ -161,5 +189,12 @@ class ArmCommander:
         self.joint_trajectory_publisher = rospy.Publisher(
                 '/niryo_one_follow_joint_trajectory_controller/command',
                 JointTrajectory, queue_size=10)
+
+        self.trajectory_client = actionlib.SimpleActionClient(
+                '/niryo_one_follow_joint_trajectory_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
+        if not self.trajectory_client.wait_for_server(rospy.Duration(1.0)):
+            raise RobotCommanderException(CommandStatus.NO_PLAN_AVAILABLE, "No action client connected")
+	
+	self.count = 0
 
 

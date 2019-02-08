@@ -144,6 +144,10 @@ class RobotCommander:
         self.hardware_status_subscriber = rospy.Subscriber(
                 '/niryo_one/hardware_status', HardwareStatus, self.callback_hardware_status)
         
+        self.arm_trajectory_subscriber = rospy.Subscriber(
+                '/niryo_one/commander/trajectory', RobotMoveCommand, self.callback_trajectory_command)
+
+
         self.validation = rospy.get_param("/niryo_one/robot_command_validation")
         self.parameters_validation = ParametersValidation(self.validation)
         
@@ -240,7 +244,22 @@ class RobotCommander:
         if self.current_goal_handle is not None:
             return 1
         return 0
-     
+
+    def callback_trajectory_command(self, msg):
+        rospy.loginfo("Robot Action Server - Trajectory command %s %s", msg.position, msg.rpy)
+        self.reset_controller()
+        cmd = msg
+        self.arm_commander.set_pose_target(cmd.position.x, cmd.position.y, cmd.position.z,
+                                           cmd.rpy.roll, cmd.rpy.pitch, cmd.rpy.yaw)
+
+        plan = self.move_group_arm.compute_plan()
+        if not plan:
+            raise RobotCommanderException(
+                CommandStatus.PLAN_FAILED, "Moveit failed to compute the plan.")
+
+        rospy.loginfo("Robot Action Server - Trajectory plan is ready")
+        self.arm_commander.send_trajectory_direct(plan)
+
     def on_goal(self, goal_handle):
         rospy.loginfo("Robot Action Server - Received goal. Check if exists")
 

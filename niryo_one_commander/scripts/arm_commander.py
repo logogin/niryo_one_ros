@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys, traceback
 import rospy
 import threading
 
@@ -87,25 +88,18 @@ class ArmCommander:
         #msg = plan.joint_trajectory
         msg = JointTrajectory()
         msg.header.stamp = rospy.Time.now()
-        #msg.header.stamp = rospy.Time(1)
         msg.joint_names = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']
         msg.points = plan.joint_trajectory.points
-	#rospy.logwarn('============Messy points============== %d', self.count)
-	#if self.count%2 == 1:
-	#    for p in range(len(msg.points)/2): 
-	#	msg.points[p].velocities = msg.points[len(msg.points)/2].velocities
-	#    self.count += 1
-	#msg.points = [plan.joint_trajectory.points[-1]]
-        rospy.logwarn("Joint Trajectory Publisher msg: %s", msg)
+        #rospy.logwarn("Joint Trajectory Publisher msg: %s", msg)
         self.joint_trajectory_publisher.publish(msg)
 
-    def send_trajectory_direct2(self, plan):
-        rospy.logwarn("Send trajectory direct message")
-        goal = FollowJointTrajectoryGoal()
-        goal.trajectory = plan.joint_trajectory
-        self.trajectory_client.send_goal(goal)
-        self.trajectory_client.wait_for_result()
-        rospy.logwarn("Finished trajectory direct message")
+    # def send_trajectory_direct2(self, plan):
+    #     rospy.logwarn("Send trajectory direct message")
+    #     goal = FollowJointTrajectoryGoal()
+    #     goal.trajectory = plan.joint_trajectory
+    #     self.trajectory_client.send_goal(goal)
+    #     self.trajectory_client.wait_for_result()
+    #     rospy.logwarn("Finished trajectory direct message")
 
     def stop_current_plan(self):
         rospy.loginfo("Send STOP to arm")
@@ -145,6 +139,14 @@ class ArmCommander:
         try:
             self.move_group_arm.set_shift_pose_target(axis_number, value)
         except Exception, e:
+            raise RobotCommanderException(CommandStatus.INVALID_PARAMETERS, str(e))
+
+    def set_shift_pose_target_complete(self, d_position, d_rpy):
+        try:
+            self.move_group_arm.set_shift_pose_target_complete(d_position.x, d_position.y, d_position.z,
+                                                               d_rpy.roll, d_rpy.pitch, d_rpy.yaw)
+        except Exception, e:
+            traceback.print_exc(file=sys.stderr)
             raise RobotCommanderException(CommandStatus.INVALID_PARAMETERS, str(e))
 
     def set_max_velocity_scaling_factor(self, percentage):
@@ -190,11 +192,9 @@ class ArmCommander:
                 '/niryo_one_follow_joint_trajectory_controller/command',
                 JointTrajectory, queue_size=10)
 
-        self.trajectory_client = actionlib.SimpleActionClient(
-                '/niryo_one_follow_joint_trajectory_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
-        if not self.trajectory_client.wait_for_server(rospy.Duration(1.0)):
-            raise RobotCommanderException(CommandStatus.NO_PLAN_AVAILABLE, "No action client connected")
-	
-	self.count = 0
+        # self.trajectory_client = actionlib.SimpleActionClient(
+        #         '/niryo_one_follow_joint_trajectory_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
+        # if not self.trajectory_client.wait_for_server(rospy.Duration(1.0)):
+        #     raise RobotCommanderException(CommandStatus.ROS_ERROR, "No action client connected")
 
 

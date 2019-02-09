@@ -20,7 +20,6 @@
 import rospy
 import moveit_commander
 
-
 class MoveGroupArm: 
    
     def __init__(self): 
@@ -147,6 +146,22 @@ class MoveGroupArm:
 
     def set_shift_pose_target(self, axis_number, value):
         self.arm.shift_pose_target(axis_number, value, self.end_effector_link)
+
+    def set_shift_pose_target_complete(self, d_x, d_y, d_z, d_roll, d_pitch, d_yaw):
+        pose = self.arm.get_current_pose(self.end_effector_link).pose
+        rospy.loginfo('Current pose %s', pose)
+        pose_list = [pose.position.x + d_x, pose.position.y + d_y, pose.position.z + d_z]
+        if d_roll or d_pitch or d_yaw:
+            rpy = self.arm.get_current_rpy(self.end_effector_link)
+            pose_list.append(rpy[0] + d_roll)
+            pose_list.append(rpy[1] + d_pitch)
+            pose_list.append(rpy[2] + d_yaw)
+        else:
+            # no update, just copy
+            pose_list.extend([pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])
+
+        rospy.loginfo('Shifted pose %s', pose_list)
+        self.arm.set_pose_target(pose, self.end_effector_link)
 
     def set_max_velocity_scaling_factor(self, percentage):
         self.arm.set_max_velocity_scaling_factor(percentage)

@@ -247,10 +247,18 @@ class RobotCommander:
 
     def callback_trajectory_command(self, msg):
         rospy.loginfo("Robot Action Server - Trajectory command %s %s", msg.position, msg.rpy)
-        self.reset_controller()
+        #self.reset_controller()
         cmd = msg
-        self.arm_commander.set_pose_target(cmd.position.x, cmd.position.y, cmd.position.z,
+
+        if cmd.cmd_type == CommandType.POSE:
+            self.validate_params(cmd)
+            self.arm_commander.set_pose_target(cmd.position.x, cmd.position.y, cmd.position.z,
                                            cmd.rpy.roll, cmd.rpy.pitch, cmd.rpy.yaw)
+        elif cmd.cmd_type == CommandType.SHIFT_POSE:
+            # shift validation is trickier
+            self.arm_commander.set_shift_pose_target_complete(cmd.position, cmd.rpy)
+        else:
+            raise RobotCommanderException(CommandStatus.INVALID_PARAMETERS, "Wrong command type")
 
         plan = self.move_group_arm.compute_plan()
         if not plan:
@@ -259,6 +267,10 @@ class RobotCommander:
 
         rospy.loginfo("Robot Action Server - Trajectory plan is ready")
         self.arm_commander.send_trajectory_direct(plan)
+
+    def shift_pose(self, position, rpy):
+        self.arm_commander.s
+
 
     def on_goal(self, goal_handle):
         rospy.loginfo("Robot Action Server - Received goal. Check if exists")

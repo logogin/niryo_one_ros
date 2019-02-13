@@ -29,6 +29,7 @@ from ros_log_manager import RosLogManager
 from led_manager import LEDManager
 from fans_manager import FansManager
 from niryo_one_button import NiryoButton
+from niryo_one_emergency_button import NiryoEmergencyButton
 from digital_io_panel import DigitalIOPanel
 from wifi_connection import WifiConnectionManager
 from niryo_one_ros_setup import *
@@ -59,6 +60,7 @@ class NiryoOneRpi:
         self.shutdown_manager = ShutdownManager()
         self.led_manager = LEDManager()
         self.niryo_one_button = NiryoButton()
+        self.niryo_one_emergency_button = NiryoEmergencyButton()
         self.digital_io_panel = DigitalIOPanel()
         self.motor_debug = MotorDebug()
 

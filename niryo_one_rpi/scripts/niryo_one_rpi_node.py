@@ -59,9 +59,10 @@ class NiryoOneRpi:
         self.ros_log_manager = RosLogManager()
         self.shutdown_manager = ShutdownManager()
         self.led_manager = LEDManager()
-        self.niryo_one_button = NiryoButton()
-        self.niryo_one_emergency_button = NiryoEmergencyButton()
         self.digital_io_panel = DigitalIOPanel()
+        self.niryo_one_button = NiryoButton()
+        # should go after IO panel
+        self.niryo_one_emergency_button = NiryoEmergencyButton()
         self.motor_debug = MotorDebug()
 
         # Start Modbus server

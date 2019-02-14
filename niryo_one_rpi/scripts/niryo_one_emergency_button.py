@@ -84,9 +84,9 @@ class NiryoEmergencyButton:
         if state == 0:
             self.consecutive_pressed += 1
         elif state == 1: # button released
-            if self.consecutive_pressed > self.timer_frequency * 3:
+            if self.consecutive_pressed > self.timer_frequency * 2:
                 self.reset_position_event = True
-            elif self.consecutive_pressed >= 1:
+            elif self.timer_frequency/2 > self.consecutive_pressed >= 1:
                 self.emergency_stop_event = True
             self.consecutive_pressed = 0
 
@@ -123,14 +123,15 @@ class NiryoEmergencyButton:
             rospy.logerror('Error ping DXL %s', e)
 
     def reset_position(self):
+        rospy.loginfo('Reset position requested')
         calibrated_positions = [0.0, 0.0, -1.38, 0.0, 0.015, 0.0]
         msg = JointTrajectory()
-        msg.header.stamp = rospy.Time.now()
+        msg.header.stamp = rospy.Time()
         msg.joint_names = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']
 
         point = JointTrajectoryPoint()
         point.positions = calibrated_positions
-        #point.time_from_start = rospy.Duration(duration)
+        point.time_from_start = rospy.Time(nsecs=1)
         msg.points = [point]
 
         joint_trajectory_publisher = rospy.Publisher(

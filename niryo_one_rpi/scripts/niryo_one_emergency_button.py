@@ -28,6 +28,9 @@ from niryo_one_msgs.srv import SetInt
 from niryo_one_msgs.srv import OpenGripper
 from niryo_one_msgs.srv import PingDxlTool
 
+from trajectory_msgs.msg import JointTrajectory
+from trajectory_msgs.msg import JointTrajectoryPoint
+
 import digital_io_panel
 
 TOOL_GRIPPER_1_ID = 11
@@ -48,11 +51,10 @@ class NiryoEmergencyButton:
 
         self.last_state = self.read_value()
         self.consecutive_pressed = 0
-        self.activated = True
-        
+        self.emergency_stop_event = False
+        self.reset_position_event = False
+
         self.timer_frequency = 20.0
-        # self.learning_mode_action = False
-        #self.hotspot_action = False
 
         self.button_timer = rospy.Timer(rospy.Duration(1.0/self.timer_frequency), self.check_button)
         rospy.on_shutdown(self.shutdown)
@@ -63,45 +65,30 @@ class NiryoEmergencyButton:
         self.button_timer.shutdown()
 
     def check_button(self, event):
-        if not self.activated:
-            return
-
-        # Execute action if flag True
-        # if self.learning_mode_action:
-        #     send_learning_mode_command()
-        #     self.learning_mode_action = False
-        #     #self.shutdown_action = False
-        # elif self.shutdown_action:
-        #     send_shutdown_command()
-        #     self.hotspot_action = False
-        #     self.shutdown_action = False
-
         # Read button state
         state = self.read_value()
+
+        # Execute action if flag True
+        if self.emergency_stop_event:
+            self.ping_dxl_tool(TOOL_GRIPPER_1_ID, "Gripper 1")
+            self.open_gripper()
+            self.activate_learning_mode(True)
+            self.emergency_stop_event = False
+            self.reset_position_event = False
+        elif self.reset_position_event:
+            self.reset_position()
+            self.emergency_stop_event = False
+            self.reset_position_event = False
 
         # Check if there is an action to do
         if state == 0:
             self.consecutive_pressed += 1
         elif state == 1: # button released
-            if self.consecutive_pressed > self.timer_frequency * 20:
-                self.activated = False # deactivate button if pressed more than 20 seconds
-            # elif self.consecutive_pressed > self.timer_frequency * 6:
-            #     self.send_learning_mode_command = True
-            # elif self.consecutive_pressed > self.timer_frequency * 3:
-            #     self.shutdown_action = True
+            if self.consecutive_pressed > self.timer_frequency * 3:
+                self.reset_position_event = True
             elif self.consecutive_pressed >= 1:
-                self.activate_learning_mode(True)
-                self.ping_dxl_tool(TOOL_GRIPPER_1_ID, "Gripper 1")
-                self.open_gripper()
+                self.emergency_stop_event = True
             self.consecutive_pressed = 0
-            
-        # Use LED to help user know which action to execute
-        # if self.consecutive_pressed > self.timer_frequency * 20:
-        #     send_led_state(1)
-        # elif self.consecutive_pressed > self.timer_frequency * 6:
-        #     send_led_state(5)
-        # elif self.consecutive_pressed > self.timer_frequency * 3:
-        #     send_led_state(1)
 
     def activate_learning_mode(self, activate):
         try:
@@ -134,3 +121,19 @@ class NiryoEmergencyButton:
         except (rospy.ServiceException, rospy.ROSException), e:
             traceback.print_exc(file=sys.stderr)
             rospy.logerror('Error ping DXL %s', e)
+
+    def reset_position(self):
+        calibrated_positions = [0.0, 0.0, -1.38, 0.0, 0.015, 0.0]
+        msg = JointTrajectory()
+        msg.header.stamp = rospy.Time.now()
+        msg.joint_names = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']
+
+        point = JointTrajectoryPoint()
+        point.positions = calibrated_positions
+        #point.time_from_start = rospy.Duration(duration)
+        msg.points = [point]
+
+        joint_trajectory_publisher = rospy.Publisher(
+            '/niryo_one_follow_joint_trajectory_controller/command',
+            JointTrajectory, queue_size=10)
+        joint_trajectory_publisher.publish(msg)

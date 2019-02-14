@@ -26,6 +26,7 @@ from niryo_one_rpi.rpi_ros_utils import *
 
 from niryo_one_msgs.srv import SetInt
 from niryo_one_msgs.srv import OpenGripper
+from niryo_one_msgs.srv import PingDxlTool
 
 import digital_io_panel
 
@@ -90,6 +91,7 @@ class NiryoEmergencyButton:
             #     self.shutdown_action = True
             elif self.consecutive_pressed >= 1:
                 self.activate_learning_mode(True)
+                self.ping_dxl_tool(TOOL_GRIPPER_1_ID, "Gripper 1")
                 self.open_gripper()
             self.consecutive_pressed = 0
             
@@ -121,3 +123,14 @@ class NiryoEmergencyButton:
         except (rospy.ServiceException, rospy.ROSException), e:
             traceback.print_exc(file=sys.stderr)
             rospy.logerror('Error opening gripper %s', e)
+
+    def ping_dxl_tool(self, tool_id, tool_name):
+        try:
+            rospy.wait_for_service('niryo_one/tools/ping_and_set_dxl_tool', 1)
+            srv = rospy.ServiceProxy('niryo_one/tools/ping_and_set_dxl_tool', PingDxlTool)
+            resp = srv(tool_id, tool_name)
+            rospy.loginfo('Ping DXL response %s', resp)
+            return resp.state
+        except (rospy.ServiceException, rospy.ROSException), e:
+            traceback.print_exc(file=sys.stderr)
+            rospy.logerror('Error ping DXL %s', e)

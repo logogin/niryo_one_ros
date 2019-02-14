@@ -25,9 +25,11 @@ import sys, traceback
 from niryo_one_rpi.rpi_ros_utils import * 
 
 from niryo_one_msgs.srv import SetInt
+from niryo_one_msgs.srv import OpenGripper
 
 import digital_io_panel
 
+TOOL_GRIPPER_1_ID = 11
 EMERGENCY_BUTTON_GPIO = digital_io_panel.GPIO_1_A
 
 
@@ -88,6 +90,7 @@ class NiryoEmergencyButton:
             #     self.shutdown_action = True
             elif self.consecutive_pressed >= 1:
                 self.activate_learning_mode(True)
+                self.open_gripper()
             self.consecutive_pressed = 0
             
         # Use LED to help user know which action to execute
@@ -103,6 +106,18 @@ class NiryoEmergencyButton:
             rospy.wait_for_service('/niryo_one/activate_learning_mode', 1)
             srv = rospy.ServiceProxy('/niryo_one/activate_learning_mode', SetInt)
             resp = srv(int(activate))
+            rospy.loginfo('Learning mode activation %s', resp)
         except (rospy.ServiceException, rospy.ROSException), e:
             traceback.print_exc(file=sys.stderr)
             rospy.logerror('Error activating learning mode %s', e)
+
+    def open_gripper(self):
+        try:
+            rospy.wait_for_service('niryo_one/tools/open_gripper', 1)
+            srv = rospy.ServiceProxy('niryo_one/tools/open_gripper', OpenGripper)
+            # gripper_id=11, open_position=600, open_speed=300, open_hold_torque=128
+            resp = srv(TOOL_GRIPPER_1_ID, 600, 300, 128)
+            rospy.loginfo('Open gripper response %s', resp)
+        except (rospy.ServiceException, rospy.ROSException), e:
+            traceback.print_exc(file=sys.stderr)
+            rospy.logerror('Error opening gripper %s', e)

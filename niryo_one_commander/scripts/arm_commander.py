@@ -24,7 +24,7 @@ import threading
 import actionlib
 from actionlib_msgs.msg import GoalStatus
 
-from trajectory_msgs.msg import JointTrajectory
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from control_msgs.msg import FollowJointTrajectoryAction
 from control_msgs.msg import FollowJointTrajectoryGoal
 from control_msgs.msg import FollowJointTrajectoryActionGoal
@@ -86,12 +86,29 @@ class ArmCommander:
     def send_trajectory_direct(self, plan):
         #rospy.logwarn("Send trajectory direct message %s", plan)
         #msg = plan.joint_trajectory
-        msg = JointTrajectory()
-        msg.header.stamp = rospy.Time.now()
-        msg.joint_names = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']
-        msg.points = plan.joint_trajectory.points
+        msg = self.build_msg_one_point(plan)
         #rospy.logwarn("Joint Trajectory Publisher msg: %s", msg)
         self.joint_trajectory_publisher.publish(msg)
+
+    def build_msg_one_point(self, plan):
+        msg = JointTrajectory()
+        msg.header.stamp = rospy.Time()
+        msg.joint_names = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']
+        msg.points = [plan.joint_trajectory.points[-1]]
+        return msg
+
+    def build_msg_one_point_alt(self, plan):
+        msg = JointTrajectory()
+        msg.header.stamp = rospy.Time()
+        msg.joint_names = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']
+
+        last_point = plan.joint_trajectory.points[-1]
+        point = JointTrajectoryPoint()
+        point.positions = last_point.positions
+        point.time_from_start = last_point.time_from_start
+
+        msg.points = [last_point]
+        return msg
 
     # def send_trajectory_direct2(self, plan):
     #     rospy.logwarn("Send trajectory direct message")
